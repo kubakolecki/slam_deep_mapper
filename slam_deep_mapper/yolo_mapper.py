@@ -16,8 +16,8 @@ import onnxruntime as ort
 from ultralytics import YOLO
 
 
-from orbslam3.msg import GeoreferencedStereoImage
-from depth_optimizer.msg import ObjectData
+from ros_common_messages.msg import GeoreferencedStereoImage
+from ros_common_messages.msg import ImageBasedMappingData
 
 ONNX_INPUT_SIZE = (544, 1216) #These are values for Metric3D ConvNext Large model, according to: https://github.com/YvanYin/Metric3D/blob/main/onnx/test_onnx.py
 
@@ -135,7 +135,7 @@ class YoloMapper(Node):
             10)
         
         self.publisher_detection_visualization = self.create_publisher(sensor_msgs.Image, 'slam_deep_mapper/yolo_visualization', 10)
-        self.publisher_object_data = self.create_publisher(ObjectData, 'slam_deep_mapper/object_data', 10)
+        self.publisher_object_data = self.create_publisher(ImageBasedMappingData, 'slam_deep_mapper/mapping_data', 10)
         self.bridge = CvBridge()
         self.get_logger().info('Waiting for GeoreferencedStereoImage messages...')
 
@@ -219,19 +219,20 @@ class YoloMapper(Node):
 
             print(f"depth map is of type {depth_map.dtype} and has shape {depth_map.shape}")
 
-            object_data_message = ObjectData()
-            object_data_message.pose = stereo_image_message.pose
-            object_data_message.sparse_depth_information = stereo_image_message.sparse_depth_information
-            object_data_message.depth_map_left_row_major = depth_map.flatten().tolist() #we know that depth map has type float32
-            object_data_message.depth_map_right_row_major = np.zeros(image_left_color.shape[:2], dtype=depth_map_result.dtype).flatten().tolist() #TODO: for now, we do not estimate depth for right image  
-            object_data_message.rows = image_left_color.shape[0]
-            object_data_message.columns = image_left_color.shape[1]
-            object_data_message.depth_map_row_min = self.depth_estimation_roi_rows[0]
-            object_data_message.depth_map_row_max = self.depth_estimation_roi_rows[1]
-            object_data_message.depth_map_col_min = self.depth_estimation_roi_cols[0]
-            object_data_message.depth_map_col_max = self.depth_estimation_roi_cols[1]
-            object_data_message.focal_lenght_left = self.camera_constant_image_left
-            object_data_message.focal_lenght_right = self.camera_constant_image_right
+            mapping_data_message = ImageBasedMappingData()
+            mapping_data_message.pose = stereo_image_message.pose
+            mapping_data_message.sparse_depth_information = stereo_image_message.sparse_depth_information
+            mapping_data_message.depth_map_left_row_major = depth_map.flatten().tolist() #we know that depth map has type float32
+            mapping_data_message.depth_map_right_row_major = np.zeros(image_left_color.shape[:2], dtype=depth_map_result.dtype).flatten().tolist() #TODO: for now, we do not estimate depth for right image  
+            mapping_data_message.has_right_depth_map = False
+            mapping_data_message.rows = image_left_color.shape[0]
+            mapping_data_message.columns = image_left_color.shape[1]
+            mapping_data_message.depth_map_row_min = self.depth_estimation_roi_rows[0]
+            mapping_data_message.depth_map_row_max = self.depth_estimation_roi_rows[1]
+            mapping_data_message.depth_map_col_min = self.depth_estimation_roi_cols[0]
+            mapping_data_message.depth_map_col_max = self.depth_estimation_roi_cols[1]
+            mapping_data_message.focal_length_left = self.camera_constant_image_left
+            mapping_data_message.focal_length_right = self.camera_constant_image_right
 
             image_segmented_by_classes = np.zeros(image_left_color.shape[:2], dtype=np.int32)
             list_of_classes = []
@@ -243,11 +244,11 @@ class YoloMapper(Node):
                 image_segmented_by_classes[mask_array] = np.int16(object_id) + 1 #we start counting object ids from 1
 
      
-            object_data_message.image_segmented_by_classes = image_segmented_by_classes.flatten().tolist()
-            object_data_message.list_of_classes = list_of_classes
-            object_data_message.number_of_objects = len(list_of_classes)
+            mapping_data_message.image_segmented_by_classes = image_segmented_by_classes.flatten().tolist()
+            mapping_data_message.list_of_classes = list_of_classes
+            mapping_data_message.number_of_objects = len(list_of_classes)
             print(f"Publishing ObjectData message with {len(list_of_classes)} objects detected.")
-            self.publisher_object_data.publish(object_data_message)
+            self.publisher_object_data.publish(mapping_data_message)
             #the computations that follow will be done in anorther C++ node later on
 
 
