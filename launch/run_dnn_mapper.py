@@ -8,13 +8,14 @@ def generate_launch_description():
     return LaunchDescription([
         Node(
             package='slam_deep_mapper',
-            executable='yolo_mapper',
-            name='yolo_mapper',
+            executable='dnn_mapper',
+            name='dnn_mapper',
             output='screen',
             parameters=[{'name_of_stero_image_topic': '/orbslam3/georeferenced_stereo_image'},
                         {'model_yolo_path': '/datadisk/data/agh_projects/dydaktyka/street_view_project/dnn/yolo11m-seg.pt'},
                         {'model_depth_path': '/home/kuba/dev/projects/ros2_jazzy_vimbax_ws/metric3d_convnext_large.onnx'},
                         {'confidence_threshold': 0.62},
+                        {'do_run_yolo_detection': False},
                         {'publish_visualizations': True},
                         {'save_visualizations': False},
                         {'output_directory': '/datadisk/data/agh_projects/yolo_mapper_project/results/yolo_detections/'},

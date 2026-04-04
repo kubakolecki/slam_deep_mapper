@@ -20,7 +20,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'yolo_mapper = slam_deep_mapper.yolo_mapper:main',
+            'dnn_mapper = slam_deep_mapper.dnn_mapper:main',
         ],
     },
 )
