@@ -21,6 +21,7 @@ setup(
     entry_points={
         'console_scripts': [
             'dnn_mapper = slam_deep_mapper.dnn_mapper:main',
+            'stereo_image_writer = slam_deep_mapper.stereo_image_writer:main'
         ],
     },
 )

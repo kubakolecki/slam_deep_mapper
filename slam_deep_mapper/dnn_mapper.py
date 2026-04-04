@@ -177,7 +177,7 @@ class DnnMapper(Node):
         else: #color image
             image_left_color = image_left
 
-
+        #TODO:add other DNN approaches for depth estimation
         #depth estimation using Metric3D:
         image_input_depth_detection = image_left_color[self.depth_estimation_roi_rows[0]:self.depth_estimation_roi_rows[1], self.depth_estimation_roi_cols[0]:self.depth_estimation_roi_cols[1], :]
         onnx_input, pad_info = prepare_onnx_input(image_input_depth_detection, ONNX_INPUT_SIZE)
@@ -188,9 +188,9 @@ class DnnMapper(Node):
         depth_map = np.zeros(image_left_color.shape[:2], dtype=depth_map_result.dtype)
         depth_map[self.depth_estimation_roi_rows[0]:self.depth_estimation_roi_rows[1], self.depth_estimation_roi_cols[0]:self.depth_estimation_roi_cols[1]] = depth_map_result
 
-        #add other approaches for depth estimation usingf DND here ...
+        #TODO:add other approaches for depth estimation using DND here ...
 
-        
+
 
         #preparing mapping data message:
         mapping_data_message = ImageBasedMappingData()
