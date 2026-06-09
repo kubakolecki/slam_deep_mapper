@@ -68,8 +68,12 @@ class DnnMapper(Node):
         self.declare_parameter('do_run_yolo_detection', True)
         self.declare_parameter('publish_visualizations', True)
         self.declare_parameter('save_visualizations', False)
-        self.declare_parameter('depth_estimation_roi_rows', [28,929])
-        self.declare_parameter('depth_estimation_roi_cols', [87,1280])
+        self.declare_parameter('do_save_images', True)
+        self.declare_parameter('do_save_depth_maps', True)
+        self.declare_parameter('path_to_save_images', '/path/to/save/images')
+        self.declare_parameter('path_to_save_depth_maps', '/path/to/save/depth/maps')
+        self.declare_parameter('depth_estimation_roi_rows', [30,929])
+        self.declare_parameter('depth_estimation_roi_cols', [89,1280])
         self.declare_parameter('camera_constant_image_left', [562.32565, 562.17107]) 
         self.declare_parameter('camera_constant_image_right', [551.66086, 551.60775])
         self.declare_parameter('max_depth_meters', 10.0)
@@ -81,6 +85,10 @@ class DnnMapper(Node):
         self.do_run_yolo_detection = self.get_parameter('do_run_yolo_detection').get_parameter_value().bool_value
         self.do_publish_visualizations = self.get_parameter('publish_visualizations').get_parameter_value().bool_value
         self.do_save_visualizations = self.get_parameter('save_visualizations').get_parameter_value().bool_value
+        self.do_save_images = self.get_parameter('do_save_images').get_parameter_value().bool_value
+        self.do_save_depth_maps = self.get_parameter('do_save_depth_maps').get_parameter_value().bool_value
+        self.path_to_save_images = self.get_parameter('path_to_save_images').get_parameter_value().string_value
+        self.path_to_save_depth_maps = self.get_parameter('path_to_save_depth_maps').get_parameter_value().string_value
         self.depth_estimation_roi_rows = self.get_parameter('depth_estimation_roi_rows').get_parameter_value().integer_array_value
         self.depth_estimation_roi_cols = self.get_parameter('depth_estimation_roi_cols').get_parameter_value().integer_array_value
         self.camera_constant_image_left = self.get_parameter('camera_constant_image_left').get_parameter_value().double_array_value
@@ -99,6 +107,16 @@ class DnnMapper(Node):
             self.get_logger().fatal(f'Depth model file {model_depth_path} does not exist.')
             raise FileNotFoundError(f'Depth model file {model_depth_path} does not exist.')
         
+        if not os.path.exists(self.path_to_save_images):
+            self.get_logger().warning(f'Path to save images {self.path_to_save_images} does not exist.')
+            os.makedirs(self.path_to_save_images)
+            self.get_logger().info(f'Created directory for saving images: {self.path_to_save_images}')
+        
+        if self.do_save_depth_maps and not os.path.exists(self.path_to_save_depth_maps):
+            self.get_logger().warning(f'Path to save depth maps {self.path_to_save_depth_maps} does not exist.')
+            os.makedirs(self.path_to_save_depth_maps)
+            self.get_logger().info(f'Created directory for saving depth maps: {self.path_to_save_depth_maps}')
+
         if self.depth_estimation_roi_rows[0] < 0 or self.depth_estimation_roi_rows[1] < 0 or self.depth_estimation_roi_cols[0] < 0 or self.depth_estimation_roi_cols[1] < 0:
             self.get_logger().fatal(f'ROI values for depth estimation must be non-negative.')
             raise ValueError(f'ROI values for depth estimation must be non-negative.')
@@ -172,6 +190,13 @@ class DnnMapper(Node):
     def process_stereo_image(self, stereo_image_message: GeoreferencedStereoImage):
         #self.get_logger().info('Processing GeoreferencedStereoImage message.')       
         image_left = self.bridge.imgmsg_to_cv2(stereo_image_message.image_left, desired_encoding='passthrough')
+
+        if self.do_save_images:
+            image_file_name = 'left_' + str(stereo_image_message.pose.header.stamp.sec) + '_' + str(stereo_image_message.pose.header.stamp.nanosec).zfill(9) + '.png'
+            path_file_image = os.path.join(self.path_to_save_images, image_file_name)
+            cv2.imwrite(path_file_image, image_left)
+
+
         if image_left.ndim == 2: #grayscale image
             image_left_color = np.stack((image_left, image_left, image_left), axis=-1)
         else: #color image
@@ -191,6 +216,10 @@ class DnnMapper(Node):
         #TODO:add other approaches for depth estimation using DND here ...
 
 
+        if self.do_save_depth_maps:
+            depth_map_file_name = 'depth_map_original_' + str(stereo_image_message.pose.header.stamp.sec) + '_' + str(stereo_image_message.pose.header.stamp.nanosec).zfill(9) + '.tif'
+            path_file_depth_map = os.path.join(self.path_to_save_depth_maps, depth_map_file_name)
+            cv2.imwrite(path_file_depth_map, depth_map)
 
         #preparing mapping data message:
         mapping_data_message = ImageBasedMappingData()
