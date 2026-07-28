@@ -240,9 +240,11 @@ class DnnMapper(Node):
 
         image_segmented_by_classes = np.zeros(image_left_color.shape[:2], dtype=np.int32)
         list_of_classes = []
+        list_of_confidence_scores = []
 
         mapping_data_message.image_segmented_by_classes = image_segmented_by_classes.flatten().tolist()
         mapping_data_message.list_of_classes = list_of_classes
+        mapping_data_message.confidence_scores = list_of_confidence_scores
         mapping_data_message.number_of_objects = len(list_of_classes)
 
 
@@ -267,12 +269,14 @@ class DnnMapper(Node):
                 for object_id, (class_id, mask) in enumerate(zip(result.boxes.cls, result.masks)):
                     mask_array =  cv2.resize(np.squeeze(mask.data.cpu().numpy()), (image_left_color.shape[1], image_left_color.shape[0]), interpolation=cv2.INTER_NEAREST).astype(bool)
                     list_of_classes.append(np.int16(class_id.cpu()))
+                    list_of_confidence_scores.append(float(result.boxes.conf[object_id].cpu()))
                     image_segmented_by_classes[mask_array] = np.int16(object_id) + 1 #we start counting object ids from 1
 
-        
+                print(f"confidence scores: {list_of_confidence_scores}")
                 mapping_data_message.image_segmented_by_classes = image_segmented_by_classes.flatten().tolist()
                 mapping_data_message.list_of_classes = list_of_classes
                 mapping_data_message.number_of_objects = len(list_of_classes)
+                mapping_data_message.confidence_scores = list_of_confidence_scores
             
         print(f"Publishing mapping data message with {len(list_of_classes)} objects detected.")
         self.publisher_object_data.publish(mapping_data_message)
