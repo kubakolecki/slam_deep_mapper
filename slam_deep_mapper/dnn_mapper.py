@@ -45,11 +45,19 @@ def prepare_onnx_input(rgb_image: np.ndarray, input_size: Tuple[int, int]) -> Tu
     )
     pad_info = [pad_h_half, pad_h - pad_h_half, pad_w_half, pad_w - pad_w_half]
 
+    #onnx_input = {
+    #    "image": np.ascontiguousarray(
+    #        np.transpose(rgb, (2, 0, 1))[None], dtype=np.float32
+    #    ),  # 1, 3, H, W
+    #}
+
     onnx_input = {
-        "image": np.ascontiguousarray(
+        "pixel_values": np.ascontiguousarray(
             np.transpose(rgb, (2, 0, 1))[None], dtype=np.float32
         ),  # 1, 3, H, W
     }
+
+
     return onnx_input, pad_info
 
 
@@ -146,6 +154,7 @@ class DnnMapper(Node):
             self.model = None
 
         onnx_providers = [("CUDAExecutionProvider",{"cudnn_conv_use_max_workspace": "0", "device_id": str(0)})]
+        self.get_logger().info('Loading dnn model...')
         self.onnx_session = ort.InferenceSession(model_depth_path, providers=onnx_providers)
    
         self.subscription_stereo_image = self.create_subscription(
@@ -202,8 +211,11 @@ class DnnMapper(Node):
         else: #color image
             image_left_color = image_left
 
+        time_depthmap_start = time.perf_counter()
         #TODO:add other DNN approaches for depth estimation
         #depth estimation using Metric3D:
+
+        #OLD APPROACH with prepare_onnx_input
         image_input_depth_detection = image_left_color[self.depth_estimation_roi_rows[0]:self.depth_estimation_roi_rows[1], self.depth_estimation_roi_cols[0]:self.depth_estimation_roi_cols[1], :]
         onnx_input, pad_info = prepare_onnx_input(image_input_depth_detection, ONNX_INPUT_SIZE)
         onnx_output = self.onnx_session.run(None, onnx_input)
@@ -213,6 +225,8 @@ class DnnMapper(Node):
         depth_map = np.zeros(image_left_color.shape[:2], dtype=depth_map_result.dtype)
         depth_map[self.depth_estimation_roi_rows[0]:self.depth_estimation_roi_rows[1], self.depth_estimation_roi_cols[0]:self.depth_estimation_roi_cols[1]] = depth_map_result
 
+        time_depthmap_end = time.perf_counter()
+        self.get_logger().info(f"YOLO Runtime: {time_depthmap_end - time_depthmap_start:.4f} seconds")
         #TODO:add other approaches for depth estimation using DND here ...
 
 
