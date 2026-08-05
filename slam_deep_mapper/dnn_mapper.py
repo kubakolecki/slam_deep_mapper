@@ -52,6 +52,14 @@ def prepare_onnx_input(rgb_image: np.ndarray, input_size: Tuple[int, int]) -> Tu
     }
     return onnx_input, pad_info
 
+def preprocess_depth_pro(img_rgb: np.ndarray, input_h: int, input_w: int):
+    resized = cv2.resize(img_rgb, (input_w, input_h), interpolation=cv2.INTER_LINEAR)
+    x = resized.astype(np.float32) / 255.0
+    x = (x - 0.5) / 0.5
+    x = np.transpose(x, (2, 0, 1))
+    x = np.expand_dims(x, axis=0)
+    return x.astype(np.float32)
+
 
 class DnnMapper(Node):
     def __init__(self):
@@ -145,7 +153,8 @@ class DnnMapper(Node):
             self.get_logger().warning(f'YOLO detection is disabled. No model will be loaded and no detections will be performed.') 
             self.model = None
 
-        onnx_providers = [("CUDAExecutionProvider",{"cudnn_conv_use_max_workspace": "0", "device_id": str(0)})]
+        #onnx_providers = [("CUDAExecutionProvider",{"cudnn_conv_use_max_workspace": "0", "device_id": str(0)})]
+        onnx_providers = ["CUDAExecutionProvider"]
         self.onnx_session = ort.InferenceSession(model_depth_path, providers=onnx_providers)
    
         self.subscription_stereo_image = self.create_subscription(
@@ -188,7 +197,7 @@ class DnnMapper(Node):
         return interpolated_depth_values
 
     def process_stereo_image(self, stereo_image_message: GeoreferencedStereoImage):
-        #self.get_logger().info('Processing GeoreferencedStereoImage message.')       
+        self.get_logger().info('Processing GeoreferencedStereoImage message.')       
         image_left = self.bridge.imgmsg_to_cv2(stereo_image_message.image_left, desired_encoding='passthrough')
 
         if self.do_save_images:
@@ -202,16 +211,44 @@ class DnnMapper(Node):
         else: #color image
             image_left_color = image_left
 
+        time_depth_map_start = time.perf_counter()
+
         #TODO:add other DNN approaches for depth estimation
         #depth estimation using Metric3D:
         image_input_depth_detection = image_left_color[self.depth_estimation_roi_rows[0]:self.depth_estimation_roi_rows[1], self.depth_estimation_roi_cols[0]:self.depth_estimation_roi_cols[1], :]
-        onnx_input, pad_info = prepare_onnx_input(image_input_depth_detection, ONNX_INPUT_SIZE)
-        onnx_output = self.onnx_session.run(None, onnx_input)
-        depth_map_result = onnx_output[0].squeeze()
-        depth_map_result = depth_map_result[pad_info[0] : ONNX_INPUT_SIZE[0] - pad_info[1], pad_info[2] : ONNX_INPUT_SIZE[1] - pad_info[3]]
+        #onnx_input, pad_info = prepare_onnx_input(image_input_depth_detection, ONNX_INPUT_SIZE)
+
+
+        #onnx_output = self.onnx_session.run(None, onnx_input)
+
+        input_meta = self.onnx_session.get_inputs()[0]
+        input_name = input_meta.name
+
+        #input_h = 1536
+        #input_w = 1536
+
+        input_h = 1024
+        input_w = 1024
+
+        #im_height, im_width, _ = image_input_depth_detection.shape
+        onnx_input = preprocess_depth_pro(image_input_depth_detection, int(input_h), int(input_w))
+        onnx_output = self.onnx_session.run(None, {input_name: onnx_input})
+
+        time_depth_map_end = time.perf_counter()
+        self.get_logger().info(f"Depth Map Runtime: {time_depth_map_end - time_depth_map_start:.4f} seconds")
+
+        depth_map_result = onnx_output[0][0]
+
+        print(f"Depth map result shape: {depth_map_result.shape}")
+        #print(f"Depth map result shape: {depth_map_result[0].shape}")
+
+        #depth_map_result = onnx_output[0].squeeze()
+        #depth_map_result = depth_map_result[pad_info[0] : ONNX_INPUT_SIZE[0] - pad_info[1], pad_info[2] : ONNX_INPUT_SIZE[1] - pad_info[3]]
+
         depth_map_result = cv2.resize(depth_map_result, (image_input_depth_detection.shape[:2][1], image_input_depth_detection.shape[:2][0]), interpolation=cv2.INTER_LINEAR)
         depth_map = np.zeros(image_left_color.shape[:2], dtype=depth_map_result.dtype)
         depth_map[self.depth_estimation_roi_rows[0]:self.depth_estimation_roi_rows[1], self.depth_estimation_roi_cols[0]:self.depth_estimation_roi_cols[1]] = depth_map_result
+
 
         #TODO:add other approaches for depth estimation using DND here ...
 
