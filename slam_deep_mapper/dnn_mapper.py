@@ -52,6 +52,28 @@ def prepare_onnx_input(rgb_image: np.ndarray, input_size: Tuple[int, int]) -> Tu
     }
     return onnx_input, pad_info
 
+def preprocess_depth_anything_v2_cv2(
+    img_rgb: np.ndarray,
+    input_h: int = 518,
+    input_w: int = 518,
+):
+    resized = cv2.resize(
+        img_rgb,
+        (input_w, input_h),
+        interpolation=cv2.INTER_CUBIC,
+    )
+
+    x = resized.astype(np.float32) / 255.0
+
+    mean = np.array([0.485, 0.456, 0.406], dtype=np.float32)
+    std = np.array([0.229, 0.224, 0.225], dtype=np.float32)
+
+    x = (x - mean) / std
+    x = np.transpose(x, (2, 0, 1))
+    x = np.expand_dims(x, axis=0)
+
+    return x.astype(np.float32)
+
 
 class DnnMapper(Node):
     def __init__(self):
