@@ -52,11 +52,7 @@ def prepare_onnx_input(rgb_image: np.ndarray, input_size: Tuple[int, int]) -> Tu
     }
     return onnx_input, pad_info
 
-def preprocess_depth_anything_v2_cv2(
-    img_rgb: np.ndarray,
-    input_h: int = 518,
-    input_w: int = 518,
-):
+def preprocess_depth_anything(img_rgb: np.ndarray, input_h: int = 518, input_w: int = 518):
     resized = cv2.resize(
         img_rgb,
         (input_w, input_h),
@@ -224,16 +220,27 @@ class DnnMapper(Node):
         else: #color image
             image_left_color = image_left
 
+        time_depth_map_start = time.perf_counter()
+
         #TODO:add other DNN approaches for depth estimation
         #depth estimation using Metric3D:
         image_input_depth_detection = image_left_color[self.depth_estimation_roi_rows[0]:self.depth_estimation_roi_rows[1], self.depth_estimation_roi_cols[0]:self.depth_estimation_roi_cols[1], :]
-        onnx_input, pad_info = prepare_onnx_input(image_input_depth_detection, ONNX_INPUT_SIZE)
-        onnx_output = self.onnx_session.run(None, onnx_input)
-        depth_map_result = onnx_output[0].squeeze()
-        depth_map_result = depth_map_result[pad_info[0] : ONNX_INPUT_SIZE[0] - pad_info[1], pad_info[2] : ONNX_INPUT_SIZE[1] - pad_info[3]]
+        #onnx_input, pad_info = prepare_onnx_input(image_input_depth_detection, ONNX_INPUT_SIZE)
+        
+        input_meta = self.onnx_session.get_inputs()[0]
+        input_name = input_meta.name
+        
+        onnx_input = preprocess_depth_anything(image_input_depth_detection)
+        onnx_output = self.onnx_session.run(None, {input_name: onnx_input})
+        depth_map_result = onnx_output[0][0]
+        print(depth_map_result.shape)
+        #depth_map_result = depth_map_result[pad_info[0] : ONNX_INPUT_SIZE[0] - pad_info[1], pad_info[2] : ONNX_INPUT_SIZE[1] - pad_info[3]]
         depth_map_result = cv2.resize(depth_map_result, (image_input_depth_detection.shape[:2][1], image_input_depth_detection.shape[:2][0]), interpolation=cv2.INTER_LINEAR)
         depth_map = np.zeros(image_left_color.shape[:2], dtype=depth_map_result.dtype)
         depth_map[self.depth_estimation_roi_rows[0]:self.depth_estimation_roi_rows[1], self.depth_estimation_roi_cols[0]:self.depth_estimation_roi_cols[1]] = depth_map_result
+
+        time_depth_map_end = time.perf_counter()
+        self.get_logger().info(f"Depth Map Runtime: {time_depth_map_end - time_depth_map_start:.4f} seconds")
 
         #TODO:add other approaches for depth estimation using DND here ...
 
