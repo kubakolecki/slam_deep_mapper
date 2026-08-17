@@ -245,7 +245,7 @@ class DnnMapper(Node):
         #depth_map_result = onnx_output[0].squeeze()
         #depth_map_result = depth_map_result[pad_info[0] : ONNX_INPUT_SIZE[0] - pad_info[1], pad_info[2] : ONNX_INPUT_SIZE[1] - pad_info[3]]
 
-        interpolation_type = cv2.INTER_NEAREST
+        interpolation_type = cv2.INTER_LINEAR
 
         depth_map_result = cv2.resize(depth_map_result, (image_input_depth_detection.shape[:2][1], image_input_depth_detection.shape[:2][0]), interpolation=interpolation_type)
         depth_map = np.zeros(image_left_color.shape[:2], dtype=depth_map_result.dtype)
