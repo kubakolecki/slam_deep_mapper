@@ -13,7 +13,7 @@ def generate_launch_description():
             output='screen',
             parameters=[{'name_of_stero_image_topic': '/orbslam3/georeferenced_stereo_image'},
                         {'model_yolo_path': '/datadisk/data/agh_projects/dydaktyka/street_view_project/dnn/yolo11m-seg.pt'},
-                        {'model_depth_path': '/datadisk/data/depth_prediction_models/metric_3d/metric3d_convnext_large.onnx'},
+                        {'model_depth_path': '/datadisk/data/depth_prediction_models/uni_depth/unidepthv2.onnx'},
                         {'confidence_threshold': 0.62},
                         {'do_run_yolo_detection': False},
                         {'publish_visualizations': True},
