@@ -232,7 +232,7 @@ class DnnMapper(Node):
         
         onnx_input = preprocess_unidepth(image_input_depth_detection)
         onnx_output = self.onnx_session.run(None, {input_name: onnx_input})
-        depth_map_result = onnx_output[0][:, 2:3, :, :]
+        depth_map_result = onnx_output[0][:, 2:3, :, :][0][0]
         #depth_map_result = onnx_output[0][0]
         print(depth_map_result.shape)
         #depth_map_result = depth_map_result[pad_info[0] : ONNX_INPUT_SIZE[0] - pad_info[1], pad_info[2] : ONNX_INPUT_SIZE[1] - pad_info[3]]
