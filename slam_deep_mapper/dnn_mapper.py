@@ -226,7 +226,7 @@ class DnnMapper(Node):
         depth_map[self.depth_estimation_roi_rows[0]:self.depth_estimation_roi_rows[1], self.depth_estimation_roi_cols[0]:self.depth_estimation_roi_cols[1]] = depth_map_result
 
         time_depthmap_end = time.perf_counter()
-        self.get_logger().info(f"YOLO Runtime: {time_depthmap_end - time_depthmap_start:.4f} seconds")
+        self.get_logger().info(f"Depth map computation runtime: {time_depthmap_end - time_depthmap_start:.4f} seconds")
         #TODO:add other approaches for depth estimation using DND here ...
 
 
