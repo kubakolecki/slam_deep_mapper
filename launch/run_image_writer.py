@@ -12,6 +12,6 @@ def generate_launch_description():
             name='stereo_image_writer',
             output='screen',
             parameters=[{'name_of_stero_image_topic': '/orbslam3/georeferenced_stereo_image'},
-                        {'output_directory': '/datadisk/data/agh_projects/yolo_mapper_project/results/images'}],
+                        {'output_directory': '/datadisk/data/agh_projects/eth3d/table_3/stereorectied_images'}],
             emulate_tty=True
         )])
